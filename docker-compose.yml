@@ -1,0 +1,65 @@
+services:  
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: services/auth-service
+    container_name: auth-service
+    env_file:
+      - .env
+      - services/auth-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+
+  ballot-service:
+    build:
+      context: services/ballot-service
+    container_name: ballot-service
+    env_file:
+      - .env
+      - services/ballot-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    ports:
+      - "8002:8000"
+
+  vote-service:
+    build:
+      context: services/vote-service
+    container_name: vote-service
+    env_file:
+      - .env
+      - services/vote-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ballot-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+    ports:
+      - "8003:8000"
+
+volumes:
+  pgdata:

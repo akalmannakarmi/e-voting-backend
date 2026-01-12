@@ -43,7 +43,7 @@ def decode_access_token(token: str) -> dict:
     except PyJWTError:
         raise ValueError("Invalid or expired token")
 
-        
+
 def create_service_token(service_name: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=5)
 
