@@ -1,77 +1,69 @@
-services:  
-  postgres:
-    image: postgres:15
-    container_name: postgres
-    restart: always
+services:
+  db:
+    image: postgres:17
+    container_name: sample-db
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: decido
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
-
-  auth-service:
-    build:
-      context: services/auth-service
-    command: uvicorn cmd.server.main:app --host 0.0.0.0 --port 8000 --reload 
-    container_name: auth-service
+      start_period: 5s
+    
+  redis:
+    image: redis:7
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  web:
+    build: .
+    container_name: web
     env_file:
       - .env
-      - services/auth-service/.env
-    volumes:
-      - ./services/auth-service/alembic:/app/alembic
-      - ./services/auth-service/internal:/app/internal
     depends_on:
-      postgres:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
-      - "8001:8000"
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+    entrypoint: ["/app/entrypoint.sh"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-  ballot-service:
-    build:
-      context: services/ballot-service
-    command: uvicorn cmd.server.main:app --host 0.0.0.0 --port 8000 --reload 
-    container_name: ballot-service
+  celery:
+    build: .
+    command: celery -A app.config worker -l info
     env_file:
       - .env
-      - services/ballot-service/.env
     volumes:
-      - ./services/ballot-service/alembic:/app/alembic
-      - ./services/ballot-service/internal:/app/internal
+      - .:/app
     depends_on:
-      postgres:
-        condition: service_healthy
-      auth-service:
-        condition: service_started
-    ports:
-      - "8002:8000"
+      - redis
 
-  vote-service:
-    build:
-      context: services/vote-service
-    command: uvicorn cmd.server.main:app --host 0.0.0.0 --port 8000 --reload 
-    container_name: vote-service
+  celery-beat:
+    build: .
+    command: celery -A app.config beat -l info
     env_file:
       - .env
-      - services/vote-service/.env
     volumes:
-      - ./services/vote-service/alembic:/app/alembic
-      - ./services/vote-service/internal:/app/internal
+      - .:/app
     depends_on:
-      postgres:
-        condition: service_healthy
-      ballot-service:
-        condition: service_started
-      auth-service:
-        condition: service_started
-    ports:
-      - "8003:8000"
-
+      - redis
 volumes:
-  pgdata:
+  postgres_data:
+  redis_data:

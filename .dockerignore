@@ -1,0 +1,62 @@
+# ======================
+# Python
+# ======================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.env
+.venv/
+venv/
+ENV/
+
+# ======================
+# Testing
+# ======================
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ======================
+# IDEs / Editors
+# ======================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ======================
+# OS
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# Logs / Docs
+# ======================
+*.log
+*.md
+
+# ======================
+# Docker
+# ======================
+docker-compose.override.yml
+docker-compose.yml
+Dockerfile
+
+# ======================
+# Database / Runtime
+# ======================
+*.sqlite3
+.pgdata/
+redis-data/
+
+# ======================
+# Secrets
+# ======================
+.env
+*.env
+.env.*
+!.env.example
